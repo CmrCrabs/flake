@@ -43,7 +43,8 @@ to suppress emacs-30 warnings
 
 (setq zf/pkm-file-path (if (zf/termux-x11-p)
                            "/data/data/com.termux/files/home/storage/shared/SYNCTHING-2026"
-                         "/Users/zayaanazam/Library/CloudStorage/ProtonDrive-zf.azam@proton.me-folder/pkm"))
+                         "/Users/zayaanazam/Library/CloudStorage/ProtonDrive-zf.azam@proton.me-folder/pkms/pkm")
+      zf/academic-notes-path (expand-file-name "academic" zf/pkm-file-path))
 
 #+end_src
 
@@ -79,7 +80,7 @@ to suppress emacs-30 warnings
 (add-to-list 'default-frame-alist '(undecorated . t))
 #+end_src
 
-** Sane Defaults 
+** Sane Defaults
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (setq-default
  inhibit-startup-screen t
@@ -177,7 +178,6 @@ for automatic cleanup
 
 (use-package evil-collection
   :after evil
-  :ensure t
   :config
   (setq evil-collection-mode-list nil)
   (add-to-list 'evil-collection-mode-list 'org-agenda)
@@ -201,7 +201,7 @@ for automatic cleanup
 (use-package general
   :config
   (general-create-definer zf/leader
-    :keymaps '(normal visual)
+    :states '(normal visual)
     :prefix "SPC")
   (zf/leader
     "SPC" '(execute-extended-command :wk "M-x")
@@ -250,7 +250,9 @@ for automatic cleanup
 (use-package helpful
   :commands (helpful-callable helpful-variable helpful-key helpful-command)
   :config
-  (setq help-window-select t))
+  (setq help-window-select t)
+  (evil-define-key 'normal helpful-mode-map (kbd "q") 'kill-buffer-and-window))
+
 
 ;; outside of use-package so loaded ontime
 (zf/leader
@@ -274,11 +276,12 @@ for automatic cleanup
   (find-file "~/.emacs.d/config.org"))
 
 (zf/leader
-  "e" '(:ignore t :which-key "emacs")
-  "ec" '(zf/open-config :which-key "open config")
-  "er" '(zf/reload-config :which-key "reload config")
-  "et" '(consult-theme :which-key "select theme")
-  "ek" '(save-buffers-kill-emacs :which-key "kill emacs"))
+  "e" '(:ignore t :wk "emacs")
+  "ec" '(zf/open-config :wk "open config")
+  "ep" '(prism-randomize-colors :wk "randomise prism")
+  "er" '(zf/reload-config :wk "reload config")
+  "et" '(consult-theme :wk "select theme")
+  "ek" '(save-buffers-kill-emacs :wk "kill emacs"))
 (evil-define-key '(normal visual) 'global (kbd "TAB") 'evil-toggle-fold)
 #+end_src
 
@@ -326,6 +329,7 @@ macos specific fix
        (lambda (b)
          (and (buffer-live-p b)
               (not (string-prefix-p "*" (buffer-name b)))
+              (with-current-buffer b '(bound-and-true-p zf/filter-centaur))
               (not (string-prefix-p " " (buffer-name b)))))
        (persp-buffers (persp-curr))))
 
@@ -372,17 +376,17 @@ FUTURE: auto saveload vterm, fix poly-org mode, programatically ensure named per
   (persp-mode))
 #+end_src
 
-*** misc binds 
+*** misc binds
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (zf/leader
   "b" '(:ignore t :which-key "buffer")
   "bq" '(image-kill-buffer :which-key "kill current")
   "bk" '(kill-buffer :which-key "kill (search)")
-  "bs" '(switch-to-buffer :which-key "search"))
+  "bs" '(consult-buffer :which-key "search"))
 #+end_src
 
 ** Windows
-*** movement, focus, resize 
+*** movement, focus, resize
 ref: https://karthinks.com/software/emacs-window-management-almanac/
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (defun zf/fn-input (f)
@@ -390,6 +394,8 @@ ref: https://karthinks.com/software/emacs-window-management-almanac/
   (lambda (x)
     (interactive "xx:")
     (funcall f x)))
+
+(setq windmove-allow-all-windows t)
 
 (zf/leader
   "w" '(:ignore t :wk "window")
@@ -416,7 +422,7 @@ ref: https://karthinks.com/software/emacs-window-management-almanac/
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (use-package avy
   :config
-  (evil-define-key 'normal 'global (kbd "f") 'evil-avy-goto-char-timer)
+  (evil-define-key 'normal 'global (kbd "f") 'evil-avy-goto-char-2)
   (setq avy-timeout-seconds 0.2))
 #+end_src
 
@@ -430,30 +436,105 @@ ref: https://karthinks.com/software/emacs-window-management-almanac/
 * Ouroborousification :FUTURE:
 ** Files
 *** fuzzy :FUTURE:GUI:
-FUTURE: change grep target
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
-(use-package affe
-  :config (zf/leader
-            "f"   '(:ignore t :which-key "file")
-            "ff"  '(affe-find :which-key "fuzzy find ~/")
-            "f/"  '(affe-grep :which-key "fuzzy grep ~/")))
+(zf/leader
+  "f" '(:ignore t :wk "file")
+  "ff" '(consult-fd :wk "fuzzy find")
+  "f/" '(consult-ripgrep :wk "fuzzy grep ~/"))
+
 #+end_src
 *** tree
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
-(use-package neotree
-  :diminish neotree-mode
-  :config
-  (setq neo-theme 'ascii)
-  (evil-define-key 'normal neotree-mode-map
-    (kbd "r") 'neotree-refresh
-    (kbd "TAB") 'neotree-enter
-    (kbd "RET") 'neotree-change-root
-    (kbd "A") 'neotree-stretch-toggle
-    (kbd "H") 'neotree-hidden-file-toggle)
-  (zf/leader
-    "ft" '(neotree-toggle :which-key "toggle tree")))
+(zf/leader
+  "ft" '(zf/display-dired-sidetree :wk "open tree"))
+
+(defun zf/display-dired-sidetree ()
+  "Displays Dired side tree."
+  (interactive)
+  (let ((buf (dired-noselect default-directory)))
+    (display-buffer-in-side-window
+     buf `((side . left)
+           (slot . 0)
+           (window-width . 30)
+           (window-parameters . ((no-other-window . t)
+                                 (no-delete-other-windows . t)
+                                 (mode-line-format . ("" "%b"))))))
+    (with-current-buffer buf
+      (setq-local zf/filter-centaur t)
+      (centaur-tabs-local-mode -1)
+      (dired-omit-mode 1)
+      (dired-hide-details-mode 1))))
 #+end_src
 
+*** browser (dired) / tree
+#+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
+;; may need require dired-x?
+(setq insert-directory-program "gls"
+      dired-kill-when-opening-new-dired-buffer t
+      dired-listing-switches "-agho --group-directories-first"
+      dired-omit-files "^\\..*")
+(add-hook 'dired-mode-hook 'dired-hide-details-mode)
+(add-hook 'dired-mode-hook 'dired-omit-mode)
+
+(zf/leader
+  "fb" '(dired-jump :wk "browse"))
+
+(evil-define-key 'normal dired-mode-map
+  (kbd "h") 'dired-up-directory
+  (kbd "j") 'dired-next-line
+  (kbd "k") 'dired-previous-line
+  (kbd "l") 'dired-find-file
+  (kbd "TAB") 'dired-subtree-toggle
+  (kbd "RET") 'dired-find-file
+  (kbd "m") 'dired-mark
+  (kbd "% m") 'dired-mark-files-regexp
+  (kbd "M") 'dired-do-rename
+  (kbd "C") 'dired-do-copy
+  (kbd "d") 'dired-flag-file-deletion
+  (kbd "D") 'dired-do-flagged-delete
+  (kbd "q") 'kill-current-buffer
+  (kbd "N") 'dired-create-directory
+  (kbd "n") 'dired-create-empty-file
+  (kbd "r") 'dired-do-rename
+  (kbd "u") 'dired-unmark
+  (kbd "U") 'dired-unmark-all-marks
+  (kbd "p") #'zf/dired-toggle-preview
+  (kbd "v") #'zf/dired-toggle-preview
+  (kbd ".") #'zf/dired-toggle-omit
+  (kbd "C-r") 'revert-buffer)
+
+(use-package all-the-icons-dired
+  :hook (dired-mode-hook . all-the-icons-dired-mode))
+
+(defun zf/dired-toggle-preview ()
+  "Toggles Dired preview on current file."
+  (interactive)
+  (if dired-preview-mode
+      (dired-preview-mode -1)
+    (dired-preview-mode 1)
+    ;;(dired-preview-display-file)
+    (let ((file (dired-get-filename nil t)))
+      (when file
+        (dired-preview-display-file file)))))
+
+(defun zf/dired-toggle-omit ()
+  "Toggles Dired omitting of hiddens."
+  (interactive)
+  (if dired-omit-mode
+      (progn
+        (dired-omit-mode -1)
+        (dired-hide-details-mode -1))
+    (progn
+      (dired-omit-mode 1)
+      (dired-hide-details-mode 1))))
+
+(use-package dired-preview)
+
+(use-package dired-subtree
+  :commands (dired-subtree-toggle))
+
+;; TODO previews for pdfs, multimedia (see docs) (ready palyer mdoe?)
+#+end_src
 ** Terminal  :PHONE_DISABLED:
 #+begin_src emacs-lisp :tangle (if (not (zf/termux-x11-p)) "~/.emacs.d/init.el" "no")
 (use-package vterm
@@ -618,8 +699,10 @@ FUTURE: change grep target
 #+end_src
 
 * PKM
-** Org Setup
+** Org Setup :HACK:
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
+(when (derived-mode-p 'org-mode) (org-get-outline-path)) ;; fixing org element cache error
+
 (setq org-directory zf/pkm-file-path
       org-log-done 'time
       org-log-into-drawer "LOGBOOK"
@@ -653,7 +736,7 @@ FUTURE: change grep target
 ** Tags :FUTURE:
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (setq org-tag-alist '((:startgroup . nil)
-                      ("@laptop" . ?l) ("@home" . ?h) ("@kings-buildings" . ?k) ("@george-square" . ?g) ("@city" . ?c) ("@ipad" . ?i) ("@gym" . ?g)
+                      ("@laptop" . ?l) ("@home" . ?h) ("@kings-buildings" . ?k) ("@george-square" . ?g) ("@city" . ?c) ("@ipad" . ?i) ("@gym" . ?g) ("@labs" . ?g)
                       (:endgroup . nil)
                       ("HABIT" . ?H)
                       ("DATA-LOG" . ?D)
@@ -672,11 +755,14 @@ FUTURE: change grep target
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (setq org-todo-keywords
       '((sequence "TODO(t)" "|" "DONE(d!)")
-        (sequence "PROJ(p)" "MKNG(k!)" "|" "MADE(m!)")
-        (sequence "HWRK(h)" "INPR(i!)" "|" "SUBM(s!)")
-        (sequence "LECT(l)" "TTRL(t)" "NOTE(n!)" "|" "CCLD(c!)")
-        (sequence "HABT(H)" "|" "DONE(d!)")
-        (sequence "DATA(D)" "|" "LGGD(d!)")))
+        (sequence "PROJ(p)" "MAKNG(k!)" "|" "MADE(m!)")
+        (sequence "ART(a)" "MAKNG(k!)" "|" "MADE(m!)")
+        (sequence "HWRK(h)" "DOING(d!)" "|" "SUBM(s!)")
+        (sequence "LECT(l)" "TTRL(t)" "LAB(L)" "NOTE(n!)" "|" "CLOSED(c!)")
+        (sequence "HABIT(H)" "|" "DONE(d!)")
+        (sequence "CHORE(c)" "|" "DONE(d!)")
+        (sequence "SOCIAL(s)" "|" "DONE(d!)")
+        (sequence "DATA(D)" "|" "LOGGED(d!)")))
 
 (zf/leader
   "ot" '(:ignore t :wk "todo")
@@ -685,10 +771,11 @@ FUTURE: change grep target
   "ots" '(org-schedule :wk "schedule"))
 #+end_src
 
-** Agenda 
+** Agenda
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
-(setq org-agenda-files (list (concat zf/pkm-file-path "/agenda")
-                             (concat zf/pkm-file-path "/journal"))
+(setq org-agenda-files (append (list (concat zf/pkm-file-path "/agenda")
+                                     (concat zf/pkm-file-path "/journal"))
+                               (directory-files-recursively (concat zf/pkm-file-path "/project/") "\\.org$"))
       org-agenda-skip-scheduled-if-done t
       org-agenda-skip-deadline-if-done t
       org-agenda-block-seperator 8411
@@ -696,12 +783,18 @@ FUTURE: change grep target
       org-agenda-use-time-grid t
       org-agenda-breadcrumbs-level 2)
 
+
 (setq org-agenda-custom-commands
-      '(
-        ("o" "short term"
+      '(("o" "short term"
          ((agenda "" ((org-agenda-span 3)
                       (org-agenda-start-day "-1d")
-                      (org-agenda-start-on-weekday nil)))))))
+                      (org-agenda-start-on-weekday nil)))))
+
+        ("t" "TODOs non time sensitive"
+         ((todo "TODO|PROJ|MAKNG|ART|HWRK|DOING|LECT|TTRL|LAB|NOTE|SOCIAL|DATA"
+                ((org-agenda-group-by "todo")
+                 (org-agenda-skip-function
+                  '(org-agenda-skip-entry-if 'scheduled 'deadline))))))))
 
 (zf/leader
   "oa" '(org-agenda :wk "agenda"))
@@ -713,7 +806,7 @@ daily notes
 (setq zf/daily-note-template
       (concat "* Agenda Scratchpad\n\n"
               "* Dream Journal\n\n"
-              "* Logbook\n\n"
+              "* Logbook :ARCHIVE:\n\n"
               "* Catchment\n\n"))
 
 (defun zf/call-with-prefix (f)
@@ -729,7 +822,7 @@ daily notes
         org-journal-file-header zf/daily-note-template
         org-journal-carryover-items ""
         org-journal-find-file-fn 'find-file
-        org-journal-file-format "%d-%m-%Y.org"
+        org-journal-file-format "%Y-%m-%d.org"
         org-journal-file-type 'daily))
 
 (use-package org-ql)
@@ -752,7 +845,7 @@ daily notes
                                (concat "**** *" state "* "
                                        "[" filename "] "
                                        (if (string-empty-p breadcrumbs-str) "" breadcrumbs-str)
-                                       " " heading
+                                       " | " heading
                                        (if (string-empty-p tags-str) "" (concat " :" tags-str ":"))
                                        "\n" body))
                     :from (org-agenda-files)
@@ -778,7 +871,7 @@ daily notes
     org-journal-file))
 
 (setq org-capture-templates
-      '(("j" "Journal Catchment" item
+      `(("j" "Journal Catchment" item
          (file+headline zf/todays-journal-file "Catchment")
          "%?" :kill-buffer t)
         ("d" "Dream Journal" plain
@@ -788,14 +881,11 @@ daily notes
          (file+headline zf/todays-journal-file "Agenda Scratchpad")
          "* TODO  %?" :kill-buffer t)
         ("n" "Nutritional Info" table-line
-         (file+headline (expand-file-name org-directory "datalog.org") "NUTRITION")
-         "| %<%Y-%m-%d> | %^{Calories} | %^{Protein} | %^{Fat} | %^{Carbs} |" :kill-buffer t)
+         (file+headline ,(expand-file-name "agenda/datalog.org" org-directory) "NUTRITION")
+         "| %<%Y-%m-%d> | %^{Calories} | %^{Carbs} | %^{Protein} | %^{Fat} |" :kill-buffer t)
         ("m" "Morning Data" table-line
-         (file+headline (expand-file-name org-directory "datalog.org") "Health Markers'")
-         "| %<%Y-%m-%d> | %^{Weight} | %^{Wake Up Time} | | %^{Hours Slept} | |" :kill-buffer t)
-        ("e" "Evening Data" table-line
-         (file+headline (expand-file-name org-directory "datalog.org") "Health Markers'")
-         "| %<%Y-%m-%d> | | | %^{Bedtime} | | %^{Steps} |" :kill-buffer t)
+         (file+headline ,(expand-file-name "agenda/datalog.org" org-directory) "Health Markers")
+         "| %<%Y-%m-%d> | %^{Weight} | %^{Wake Up Time} | %^{Hours Slept} |" :kill-buffer t)
         ))
 
 (add-hook 'org-capture-mode-hook 'evil-insert-state)
@@ -822,15 +912,94 @@ daily notes
                  (window-parameters . ((no-other-window . t))))))
 #+end_src
 
+** Mobile Helpers :PHONE_ONLY:
+#+begin_src emacs-lisp :tangle (if (zf/termux-x11-p) "~/.emacs.d/init.el" "no")
+(define-key evil-normal-state-map (kbd "C-s") 'save-buffer)
+#+end_src
+
 ** Habit Tracking
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (add-to-list 'org-modules 'org-habit t)
+(setq org-habit-graph-column 60)
 #+end_src
 
 ** Data Logging + Visualisation
 #+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
 (use-package gnuplot)
 (use-package gnuplot-mode)
+#+end_src
+
+** Node Graph :FUTURE:
+#+begin_src emacs-lisp :tangle ~/.emacs.d/init.el
+(use-package graph-fa2
+  :vc (:url "https://github.com/elij/graph-fa2.git"))
+
+(setq graph-fa2-engine '2d
+
+      graph-fa2-edge-colour "#555556"
+      graph-fa2-label-colour "#d6d6d4"
+      graph-fa2-label-offset-y 8
+      graph-fa2-label-font-size 4
+      graph-fa2-edge-width 1
+
+      graph-fa2-substeps 100 ;;100
+      graph-fa2-simulation-frames 240 ;;240
+      graph-fa2-framerate 120 ;;120
+      graph-fa2-attraction-threshold 1
+      graph-fa2-repulsion-threshold 1 
+      graph-fa2-surface-radius 1
+      graph-fa2-horizon-threshold 999999)
+
+
+(defun zf/graph-fa2-open-note (id)
+  "Open file corresponding to ID on click."
+  (let ((file (concat zf/academic-notes-path "/" id)))
+    (when (file-exists-p file)
+      (find-file-other-window file))))
+
+(defun zf/graph-fa2-network ()
+  "Generate and display a ForceAtlas2 graph."
+  (interactive)
+  (let* ((buf (get-buffer-create "*graph-view*"))
+         (files (directory-files-recursively zf/academic-notes-path "\\.md\\'"))
+         (file-ids (mapcar (lambda (file)
+                             (replace-regexp-in-string (regexp-quote zf/academic-notes-path) "" file t t))
+                           files))
+
+         (id-base-table (let ((table (make-hash-table :test 'equal)))
+                          (dolist (id file-ids)
+                            (puthash (file-name-base id) id table))
+                          table))
+         (nodes (mapcar (lambda (id)
+                          (list :id id :label (file-name-base id) :colour "#fd971e" :radius 2.0))
+                        file-ids))
+         (edges (with-temp-buffer
+                  (let (edges)
+                    (dolist (file files)
+                      (erase-buffer)
+                      (insert-file-contents file)
+                      (goto-char (point-min))
+                      (while (re-search-forward "\\[\\[\\([^]|#]+\\)" nil t)
+                        (let ((source (gethash (file-name-base file) id-base-table))
+                              (dest (gethash (file-name-base (match-string 1)) id-base-table)))
+                          (when (and source dest)
+                            (push (cons source dest)
+                                  edges)))))
+                    edges))))
+
+    (with-current-buffer buf
+      (add-hook 'graph-fa2-node-clicked-functions #'zf/graph-fa2-open-note nil t))
+
+    (pop-to-buffer buf)
+    (when (fboundp 'evil-emacs-state)
+      (evil-insert-state))
+    (graph-fa2-start buf nodes edges :cache-dir (expand-file-name "~/.emacs.d/graph-fa2-cache"))))
+
+(zf/leader
+  "og" '(:ignore t :wk "graph")
+  "ogo" '(zf/graph-fa2-network :wk "open")
+  "ogc" '(graph-fa2-clear-cache :wk "clear cache"))
+
 #+end_src
 
 ** Timeblocking
@@ -902,10 +1071,17 @@ FUTURE: keybinds, color formats
   (doom-themes-org-config))
 
 (load-theme 'doom-molokai t)
+;;(load-theme 'doom-solarized-light t)
 
-(use-package rainbow-mode
-  :diminish rainbow-mode
-  :hook org-mode prog-mode)
+;;(use-package rainbow-mode
+;;  :diminish rainbow-mode
+;;  :hook org-mode prog-mode)
+(use-package prism
+  :vc (:url "https://github.com/alphapapa/prism.el")
+  :diminish prism-mode
+  :hook (emacs-lisp-mode . prism-mode))
+
+
 #+end_src
 
 ** Minibuf :HACK:
